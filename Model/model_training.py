@@ -52,8 +52,21 @@ class ModelTrainer:
         """Handle imbalanced dataset using SMOTE"""
         print(f"Original dataset shape: {X_train.shape}")
         
-        # Convert target to numeric for SMOTE
-        y_numeric = y_train.map({'No': 0, 'Yes': 1})
+        # Convert target to numeric if it's not already
+        if y_train.dtype == 'object':
+            # Map string values to numeric
+            y_numeric = y_train.map({'No': 0, 'Yes': 1})
+        else:
+            # Already numeric, just ensure it's int type
+            y_numeric = y_train.astype(int)
+        
+        # Remove any NaN values that might have been created
+        mask = ~y_numeric.isna()
+        if not mask.all():
+            print(f"⚠️ Removing {(~mask).sum()} rows with invalid target values")
+            X_train = X_train[mask]
+            y_numeric = y_numeric[mask]
+        
         print(f"Original class distribution: {np.bincount(y_numeric)}")
         
         # Check if SMOTE is needed and possible
@@ -90,7 +103,12 @@ class ModelTrainer:
         if use_smote:
             X_train_balanced, y_train_balanced = self.handle_imbalanced_data(X_train, y_train)
         else:
-            X_train_balanced, y_train_balanced = X_train, y_train
+            # Still need to convert target to numeric even without SMOTE
+            if y_train.dtype == 'object':
+                y_train_balanced = y_train.map({'No': 0, 'Yes': 1}).astype(int)
+            else:
+                y_train_balanced = y_train.astype(int)
+            X_train_balanced = X_train
         
         # Data quality analysis
         print("\n=== Data Quality Analysis ===")
@@ -103,7 +121,13 @@ class ModelTrainer:
                 print(f"    Values: {sorted(X_train[col].unique())}")
         
         # Check for class balance
-        y_counts = y_train.value_counts()
+        if y_train.dtype == 'object':
+            y_counts = y_train.value_counts()
+        else:
+            # For numeric targets, convert to readable labels for display
+            y_display = y_train.map({0: 'No', 1: 'Yes'})
+            y_counts = y_display.value_counts()
+        
         print(f"\nClass distribution:")
         for class_val, count in y_counts.items():
             print(f"  {class_val}: {count} ({count/len(y_train)*100:.1f}%)")
@@ -122,7 +146,10 @@ class ModelTrainer:
                 y_pred_proba = model.predict_proba(X_test)[:, 1]
                 
                 # Convert y_test to numeric if needed
-                y_test_numeric = y_test.map({'No': 0, 'Yes': 1}) if y_test.dtype == 'object' else y_test
+                if y_test.dtype == 'object':
+                    y_test_numeric = y_test.map({'No': 0, 'Yes': 1})
+                else:
+                    y_test_numeric = y_test.astype(int)
                 
                 # Calculate metrics
                 accuracy = accuracy_score(y_test_numeric, y_pred)
@@ -179,7 +206,10 @@ class ModelTrainer:
         y_pred_proba = model.predict_proba(X_test)[:, 1]
         
         # Convert y_test to numeric if needed
-        y_test_numeric = y_test.map({'No': 0, 'Yes': 1}) if y_test.dtype == 'object' else y_test
+        if y_test.dtype == 'object':
+            y_test_numeric = y_test.map({'No': 0, 'Yes': 1})
+        else:
+            y_test_numeric = y_test.astype(int)
         
         # Calculate metrics
         accuracy = accuracy_score(y_test_numeric, y_pred)
