@@ -327,10 +327,16 @@ class DataPreprocessor:
         else:
             input_df = input_data.copy()
         
+        # Clean data
+        input_df = self.clean_data(input_df)
+        
         # Encode categorical features
         for col, encoder in self.label_encoders.items():
             if col in input_df.columns and col != self.target_column:
                 input_df[col] = encoder.transform(input_df[col].astype(str))
+        
+        # Create feature interactions (same as during training)
+        input_df = self.create_feature_interactions(input_df)
         
         # Select only feature columns
         input_df = input_df[self.feature_columns]
