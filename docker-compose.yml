@@ -20,20 +20,6 @@ services:
     networks:
       - oral-cancer-network
 
-  # Optional: Add a training service that can be run separately
-  model-training:
-    build: .
-    command: python Model/model_training.py
-    volumes:
-      - ./Data:/app/Data
-      - ./Model/artifacts:/app/Model/artifacts
-    environment:
-      - PYTHONUNBUFFERED=1
-    profiles:
-      - training
-    networks:
-      - oral-cancer-network
-
 networks:
   oral-cancer-network:
     driver: bridge 

@@ -24,16 +24,24 @@ jobs:
         pip install -r requirements.txt
     
     - name: Test imports
+      run: python tests/test_imports.py
+    
+    - name: Train model for testing
+      run: python tests/test_model_training.py
+    
+    - name: Test model accuracy with known cases
+      run: python tests/test_model_accuracy.py
+    
+    - name: Test model consistency and non-randomness  
+      run: python tests/test_model_consistency.py
+    
+    - name: Test edge cases and input validation
+      run: python tests/test_model_validation.py
+    
+    - name: Performance summary
       run: |
-        python -c "
-        import sys
-        sys.path.append('Model')
-        try:
-            from data_preprocessing import DataPreprocessor
-            from model_training import ModelTrainer
-            from model_inference import OralCancerPredictor
-            print('✅ All imports successful')
-        except ImportError as e:
-            print(f'❌ Import error: {e}')
-            sys.exit(1)
-        " 
+        echo "🎉 All model accuracy and consistency tests passed!"
+        echo "✅ Model shows reasonable discrimination between risk levels"
+        echo "✅ Model predictions are consistent and non-random"
+        echo "✅ Model handles edge cases appropriately"
+        echo "✅ Input validation works correctly" 

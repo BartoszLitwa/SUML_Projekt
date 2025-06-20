@@ -48,7 +48,7 @@ class StreamlitApp:
         
         st.sidebar.subheader("Team")
         st.sidebar.write("Student IDs: s25809, s24339, s24784")
-        st.sidebar.write("SUML 2023/2024")
+        st.sidebar.write("SUML 2025")
     
     def get_user_input(self):
         """Get user input through the web interface"""

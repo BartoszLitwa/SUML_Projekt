@@ -1,11 +1,11 @@
 # 🦷 Oral Cancer Risk Prediction System
 
-An AI-powered web application for assessing oral cancer risk using machine learning. This project was developed as part of the SUML 2023/2024 course at the Polish-Japanese Academy of Information Technology.
+An AI-powered web application for assessing oral cancer risk using machine learning. This project was developed as part of the SUML 2025 course at the Polish-Japanese Academy of Information Technology.
 
 ## 👥 Team Information
 
 - **Student IDs**: s25809, s24339, s24784
-- **Project**: SUML 2023/2024
+- **Project**: SUML 2025
 - **Instructor**: dr Wojciech Oronowicz-Jaśkowiak
 - **Institution**: Polsko-Japońska Akademia Technik Komputerowych w Warszawie
 
@@ -22,6 +22,7 @@ This application enables rapid assessment of oral cancer risk based on key facto
 - **Assessment History**: Track risk changes over time
 - **Dockerized Deployment**: Easy deployment with Docker containers
 - **CI/CD Pipeline**: Automated model training and deployment
+- **Comprehensive Test Suite**: Automated accuracy, consistency, and validation tests
 
 ## 🏗️ Architecture
 
@@ -37,7 +38,7 @@ SUML_Projekt/
 │   ├── model_training.py         # ML model training
 │   ├── model_inference.py        # Model inference and prediction
 │   └── artifacts/                # Trained model artifacts
-├── tests/                        # Unit tests
+├── tests/                        # Model and pipeline tests (see below)
 ├── .github/workflows/            # CI/CD pipelines
 ├── requirements.txt              # Python dependencies
 ├── Dockerfile                    # Docker configuration
@@ -178,17 +179,40 @@ The system trains and compares multiple algorithms:
 
 ## 🔧 Development
 
-### Running Tests
+### Running Model Tests
+
+The project includes a comprehensive, custom Python test suite (no pytest required) to ensure the model is accurate, consistent, and robust. All tests are in the `tests/` directory.
+
+#### **Run All Tests Locally**
 ```bash
-# Run all tests
-python -m pytest tests/ -v
-
-# Run specific test file
-python -m pytest tests/test_data_preprocessing.py -v
-
-# Run with coverage
-python -m pytest tests/ --cov=Model --cov-report=html
+python tests/run_all_tests.py
 ```
+
+#### **Run Individual Tests**
+```bash
+python tests/test_imports.py
+python tests/test_model_training.py
+python tests/test_model_accuracy.py
+python tests/test_model_consistency.py
+python tests/test_model_validation.py
+```
+
+#### **Test Suite Overview**
+
+| Test File                   | Purpose                                                      |
+|----------------------------|--------------------------------------------------------------|
+| test_imports.py             | Verify all required modules can be imported                  |
+| test_model_training.py      | Ensure model training completes and artifacts are created    |
+| test_model_accuracy.py      | Check model accuracy on known high/low risk scenarios        |
+| test_model_consistency.py   | Ensure predictions are consistent and risk ordering is valid |
+| test_model_validation.py    | Test input validation, edge cases, and output format         |
+| run_all_tests.py            | Run all tests in sequence                                   |
+
+#### **Test Criteria**
+- High-risk cases must score significantly higher than low-risk cases
+- Model must be consistent (not random)
+- Input validation and output format must be robust
+- Edge cases (e.g., age extremes) must be handled
 
 ### Code Quality
 ```bash
@@ -207,10 +231,10 @@ mypy Model/
 The project includes automated GitHub Actions workflows:
 
 1. **Tests Workflow** (`.github/workflows/tests.yml`)
-   - Runs on Python 3.8, 3.9, 3.10
-   - Code linting and formatting checks
-   - Unit test execution
-   - Import and functionality validation
+   - Runs on Python 3.9
+   - Installs dependencies
+   - Runs all model and pipeline tests in `tests/`
+   - Fails if any test fails
 
 2. **Model Training and Deployment** (`.github/workflows/model-training.yml`)
    - Automated model training on push/PR
@@ -303,7 +327,7 @@ predictor = OralCancerPredictor()
 result = predictor.predict_risk({
     'Age': 45,
     'Gender': 'Male',
-    'Tobacco Use': 'Yes',
+    'Tobacco Use': 1,  # Use 1/0 for binary features
     # ... other features
 })
 
@@ -326,7 +350,7 @@ result = predictor.predict_risk({
 
 ## 📄 License
 
-This project is part of an academic assignment for SUML 2023/2024 course.
+This project is part of an academic assignment for SUML 2025 course.
 
 ## ⚠️ Medical Disclaimer
 
@@ -345,4 +369,4 @@ For questions or issues related to this academic project, please contact the dev
 
 ---
 
-*Developed with ❤️ by Team s25809, s24339, s24784 for SUML 2023/2024*
+*Developed with ❤️ by Team s25809, s24339, s24784 for SUML 2025*

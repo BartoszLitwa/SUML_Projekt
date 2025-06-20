@@ -1,1 +1,0 @@
-# Tests package for Oral Cancer Risk Prediction System 
