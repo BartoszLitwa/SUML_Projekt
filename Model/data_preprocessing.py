@@ -144,8 +144,13 @@ class DataPreprocessor:
         
         return X_train_scaled, X_test_scaled, y_train, y_test
     
-    def save_preprocessor(self, save_dir='Model/artifacts'):
+    def save_preprocessor(self, save_dir=None):
         """Save the preprocessor components"""
+        if save_dir is None:
+            # Get the correct path to artifacts directory
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            save_dir = os.path.join(script_dir, 'artifacts')
+        
         os.makedirs(save_dir, exist_ok=True)
         
         # Save label encoders
@@ -159,8 +164,13 @@ class DataPreprocessor:
         
         print(f"Preprocessor saved to {save_dir}")
     
-    def load_preprocessor(self, save_dir='Model/artifacts'):
+    def load_preprocessor(self, save_dir=None):
         """Load the preprocessor components"""
+        if save_dir is None:
+            # Get the correct path to artifacts directory
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            save_dir = os.path.join(script_dir, 'artifacts')
+            
         try:
             self.label_encoders = joblib.load(os.path.join(save_dir, 'label_encoders.pkl'))
             self.scaler = joblib.load(os.path.join(save_dir, 'scaler.pkl'))
@@ -197,9 +207,13 @@ class DataPreprocessor:
 if __name__ == "__main__":
     # Test the preprocessor
     preprocessor = DataPreprocessor()
-    X_train, X_test, y_train, y_test = preprocessor.prepare_data(
-        'Data/01_Raw/oral_cancer_prediction_dataset.csv'
-    )
+    
+    # Get the correct path to the dataset
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+    dataset_path = os.path.join(project_root, 'Data', '01_Raw', 'oral_cancer_prediction_dataset.csv')
+    
+    X_train, X_test, y_train, y_test = preprocessor.prepare_data(dataset_path)
     
     if X_train is not None:
         preprocessor.save_preprocessor()

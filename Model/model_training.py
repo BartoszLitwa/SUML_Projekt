@@ -151,12 +151,16 @@ class ModelTrainer:
             print("Model doesn't have feature importance attribute")
             return None
     
-    def save_model(self, model=None, model_name=None, save_dir='Model/artifacts'):
+    def save_model(self, model=None, model_name=None, save_dir=None):
         """Save the trained model"""
         if model is None:
             model = self.best_model
         if model_name is None:
             model_name = self.best_model_name
+        if save_dir is None:
+            # Get the correct path to artifacts directory
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            save_dir = os.path.join(script_dir, 'artifacts')
         
         os.makedirs(save_dir, exist_ok=True)
         
@@ -206,10 +210,15 @@ def main():
     preprocessor = DataPreprocessor()
     trainer = ModelTrainer()
     
+    # Get the correct path to the dataset (relative to project root)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+    dataset_path = os.path.join(project_root, 'Data', '01_Raw', 'oral_cancer_prediction_dataset.csv')
+    
+    print(f"Looking for dataset at: {dataset_path}")
+    
     # Prepare data
-    X_train, X_test, y_train, y_test = preprocessor.prepare_data(
-        'Data/01_Raw/oral_cancer_prediction_dataset.csv'
-    )
+    X_train, X_test, y_train, y_test = preprocessor.prepare_data(dataset_path)
     
     if X_train is None:
         print("Failed to prepare data. Exiting...")
