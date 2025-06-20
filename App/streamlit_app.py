@@ -200,7 +200,7 @@ class StreamlitApp:
         """Convert user-friendly input format to model expected format"""
         converted_data = input_data.copy()
         
-        # Convert Yes/No to 1/0 for binary fields (except Gender)
+        # Convert Yes/No to 0/1 for binary fields (to match training data format)
         binary_fields = [
             'Tobacco Use', 'Alcohol Consumption', 'HPV Infection',
             'Betel Quid Use', 'Chronic Sun Exposure', 'Poor Oral Hygiene',
@@ -212,17 +212,17 @@ class StreamlitApp:
         for field in binary_fields:
             if field in converted_data:
                 if converted_data[field] == 'Yes':
-                    converted_data[field] = '1'
+                    converted_data[field] = 1
                 elif converted_data[field] == 'No':
-                    converted_data[field] = '0'
+                    converted_data[field] = 0
         
-        # Convert diet intake to binary
+        # Convert diet intake: High/Moderate = 1, Low = 0 (to match training format)
         if 'Diet (Fruits & Vegetables Intake)' in converted_data:
             diet_value = converted_data['Diet (Fruits & Vegetables Intake)']
             if diet_value in ['High', 'Moderate']:
-                converted_data['Diet (Fruits & Vegetables Intake)'] = '1'
+                converted_data['Diet (Fruits & Vegetables Intake)'] = 1
             else:  # 'Low'
-                converted_data['Diet (Fruits & Vegetables Intake)'] = '0'
+                converted_data['Diet (Fruits & Vegetables Intake)'] = 0
         
         # Gender stays as string (Male/Female)
         # Age stays as numeric

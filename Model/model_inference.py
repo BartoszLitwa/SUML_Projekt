@@ -132,7 +132,7 @@ class OralCancerPredictor:
         return self.feature_columns
     
     def validate_input(self, input_data):
-        """Validate input data format and completeness"""
+        """Validate input data format and completeness for raw user input"""
         if not self.is_loaded:
             if not self.load_model():
                 return False, "Model not loaded"
@@ -140,13 +140,23 @@ class OralCancerPredictor:
         if not isinstance(input_data, dict):
             return False, "Input data must be a dictionary"
         
+        # Define the required raw input features (not engineered features)
+        required_raw_features = [
+            'Age', 'Gender', 'Tobacco Use', 'Alcohol Consumption',
+            'HPV Infection', 'Betel Quid Use', 'Chronic Sun Exposure',
+            'Poor Oral Hygiene', 'Diet (Fruits & Vegetables Intake)',
+            'Family History of Cancer', 'Compromised Immune System',
+            'Oral Lesions', 'Unexplained Bleeding', 'Difficulty Swallowing',
+            'White or Red Patches in Mouth'
+        ]
+        
         missing_features = []
-        for feature in self.feature_columns:
+        for feature in required_raw_features:
             if feature not in input_data:
                 missing_features.append(feature)
         
         if missing_features:
-            return False, f"Missing features: {missing_features}"
+            return False, f"Missing required input features: {missing_features}"
         
         return True, "Input data is valid"
     
