@@ -7,6 +7,7 @@ import os
 sys.path.append('Model')
 
 from model_training import ModelTrainer
+from data_preprocessing import DataPreprocessor
 
 
 def test_model_training():
@@ -14,6 +15,7 @@ def test_model_training():
     print('🔄 Testing model training...')
     
     trainer = ModelTrainer()
+    preprocessor = DataPreprocessor()
     
     # Get dataset path
     dataset_path = 'Data/01_Raw/oral_cancer_prediction_dataset.csv'
@@ -21,14 +23,23 @@ def test_model_training():
         print(f'❌ Dataset not found at {dataset_path}')
         return False
     
-    # Train and save model
-    success = trainer.train_and_evaluate(dataset_path)
-    if success:
-        print('✅ Model trained successfully for testing')
-        return True
-    else:
+    # Prepare data
+    X_train, X_test, y_train, y_test = preprocessor.prepare_data(dataset_path)
+    if X_train is None:
+        print('❌ Failed to prepare data')
+        return False
+    
+    # Train models
+    best_model, best_model_name = trainer.train_models(X_train, X_test, y_train, y_test)
+    if best_model is None:
         print('❌ Model training failed')
         return False
+    
+    # Save model and preprocessor
+    model_path = trainer.save_model(best_model, best_model_name)
+    preprocessor.save_preprocessor()
+    print(f'✅ Model trained and saved to {model_path}')
+    return True
 
 
 if __name__ == "__main__":
