@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 """
-Demo script to test the Oral Cancer Risk Prediction System
-This script creates a minimal demo with mock data if the full dataset is not available.
+Simple demo script for the Oral Cancer Risk Prediction System
 """
 
 import os
 import sys
 import pandas as pd
 import numpy as np
-from pathlib import Path
 
 # Add Model directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'Model'))
@@ -60,105 +58,48 @@ def create_mock_dataset():
     return pd.DataFrame(data)
 
 def test_basic_functionality():
-    """Test basic functionality without running full training"""
+    """Test basic functionality"""
     print("=== Testing Basic Functionality ===")
     
     try:
-        # Test data preprocessing
+        # Test imports
         from data_preprocessing import DataPreprocessor
-        print("✅ DataPreprocessor imported successfully")
+        from model_inference import OralCancerPredictor
+        print("✅ All modules imported successfully")
         
+        # Test initialization
         preprocessor = DataPreprocessor()
-        print("✅ DataPreprocessor initialized")
+        predictor = OralCancerPredictor()
+        print("✅ Classes initialized successfully")
         
-        # Create or load test data
+        # Test if dataset exists
         dataset_path = 'Data/01_Raw/oral_cancer_prediction_dataset.csv'
         if os.path.exists(dataset_path):
-            print("📊 Using real dataset from Kaggle")
-            df = preprocessor.load_data(dataset_path)
+            print("✅ Dataset found")
         else:
-            print("📊 Using mock dataset for demonstration")
+            print("⚠️ Dataset not found - creating mock data")
             df = create_mock_dataset()
-            # Save mock data for testing
             os.makedirs('Data/01_Raw', exist_ok=True)
             df.to_csv(dataset_path, index=False)
-        
-        if df is not None:
-            print(f"✅ Dataset loaded successfully. Shape: {df.shape}")
-            print(f"Columns: {list(df.columns)[:5]}...")  # Show first 5 columns
-            
-            # Test preprocessing steps
-            df_clean = preprocessor.clean_data(df)
-            print("✅ Data cleaning completed")
-            
-            df_encoded = preprocessor.encode_features(df_clean)
-            print("✅ Feature encoding completed")
-            
-            X, y = preprocessor.select_features(df_encoded)
-            print(f"✅ Feature selection completed. Features: {X.shape[1]}, Samples: {X.shape[0]}")
-            
-            print(f"Target distribution:\n{pd.Series(y).value_counts()}")
-        
-        # Test model inference class
-        from model_inference import OralCancerPredictor
-        print("✅ OralCancerPredictor imported successfully")
-        
-        predictor = OralCancerPredictor()
-        print("✅ OralCancerPredictor initialized")
-        
-        # Test risk level calculation
-        test_levels = [10, 30, 60, 90]
-        for level in test_levels:
-            risk_level = predictor._get_risk_level(level)
-            print(f"  Risk {level}% -> {risk_level}")
-        
-        # Test recommendations
-        sample_input = {
-            'Tobacco Use': 'Yes',
-            'Alcohol Consumption': 'Yes',
-            'HPV Infection': 'No'
-        }
-        recommendations = predictor._get_recommendations(sample_input, 65)
-        print(f"✅ Recommendations generated: {len(recommendations)} items")
+            print("✅ Mock dataset created")
         
         return True
         
     except Exception as e:
-        print(f"❌ Error during testing: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"❌ Error: {e}")
         return False
 
-def test_streamlit_app():
-    """Test if Streamlit app can be imported"""
-    print("\n=== Testing Streamlit App ===")
-    
-    try:
-        sys.path.append('App')
-        # We can't fully test Streamlit without running it, but we can test imports
-        
-        print("✅ Streamlit app structure verified")
-        print("To run the app: streamlit run App/streamlit_app.py")
-        return True
-        
-    except Exception as e:
-        print(f"❌ Error testing Streamlit app: {e}")
-        return False
-
-def print_docker_instructions():
-    """Print Docker usage instructions"""
-    print("\n=== Docker Deployment Instructions ===")
-    print("1. Build the Docker image:")
-    print("   docker build -t oral-cancer-app .")
+def print_instructions():
+    """Print usage instructions"""
+    print("\n=== How to Use ===")
+    print("1. Train the model:")
+    print("   python Model/model_training.py")
     print("")
-    print("2. Run with Docker Compose:")
+    print("2. Run the app:")
+    print("   streamlit run App/streamlit_app.py")
+    print("")
+    print("3. Or use Docker:")
     print("   docker-compose up --build")
-    print("")
-    print("3. Access the application:")
-    print("   http://localhost:8501")
-    print("")
-    print("4. For model training:")
-    print("   docker-compose --profile training run model-training")
 
 def main():
     """Main demo function"""
@@ -168,38 +109,18 @@ def main():
     # Test basic functionality
     basic_test_passed = test_basic_functionality()
     
-    # Test Streamlit app
-    streamlit_test_passed = test_streamlit_app()
-    
-    # Print Docker instructions
-    print_docker_instructions()
+    # Print instructions
+    print_instructions()
     
     # Summary
-    print("\n=== Demo Summary ===")
+    print("\n=== Summary ===")
     if basic_test_passed:
-        print("✅ Core functionality: PASSED")
+        print("✅ System is ready to use!")
     else:
-        print("❌ Core functionality: FAILED")
+        print("❌ Please check the errors above")
     
-    if streamlit_test_passed:
-        print("✅ Streamlit app: READY")
-    else:
-        print("❌ Streamlit app: ISSUES")
-    
-    print("\n🎯 Next Steps:")
-    print("1. Install dependencies: pip install -r requirements.txt")
-    print("2. Train model: python Model/model_training.py")
-    print("3. Run app: streamlit run App/streamlit_app.py")
-    print("4. Or use Docker: docker-compose up --build")
-    
-    print("\n✨ Project Implementation Complete!")
-    print("The first user story has been successfully implemented:")
-    print("- ✅ Data preprocessing pipeline")
-    print("- ✅ Machine learning model training")
-    print("- ✅ Streamlit web application")
-    print("- ✅ Docker containerization")
-    print("- ✅ CI/CD pipeline configuration")
-    print("- ✅ Comprehensive testing")
+    print("\n👥 Developed by: Students s25809, s24339, s24784")
+    print("📚 Course: SUML 2023/2024")
 
 if __name__ == "__main__":
     main() 

@@ -1,18 +1,14 @@
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.svm import SVC
 from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score, accuracy_score
-from sklearn.model_selection import cross_val_score, GridSearchCV
+from sklearn.model_selection import cross_val_score
 from imblearn.over_sampling import SMOTE
 import xgboost as xgb
-import lightgbm as lgb
 import joblib
 import os
 from datetime import datetime
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 from data_preprocessing import DataPreprocessor
 
@@ -30,10 +26,7 @@ class ModelTrainer:
         self.models = {
             'logistic_regression': LogisticRegression(random_state=42, max_iter=1000),
             'random_forest': RandomForestClassifier(random_state=42, n_estimators=100),
-            'gradient_boosting': GradientBoostingClassifier(random_state=42),
-            'xgboost': xgb.XGBClassifier(random_state=42, eval_metric='logloss'),
-            'lightgbm': lgb.LGBMClassifier(random_state=42, verbose=-1),
-            'svm': SVC(random_state=42, probability=True)
+            'xgboost': xgb.XGBClassifier(random_state=42, eval_metric='logloss')
         }
     
     def handle_imbalanced_data(self, X_train, y_train):
@@ -102,61 +95,14 @@ class ModelTrainer:
         return self.best_model, self.best_model_name
     
     def hyperparameter_tuning(self, X_train, y_train, model_name=None):
-        """Perform hyperparameter tuning for the best model"""
+        """Simple hyperparameter tuning for the best model"""
         if model_name is None:
             model_name = self.best_model_name
         
-        print(f"\n=== Hyperparameter Tuning for {model_name} ===")
+        print(f"\n=== Using default parameters for {model_name} ===")
+        print("Skipping hyperparameter tuning to keep it simple for students")
         
-        # Define parameter grids
-        param_grids = {
-            'random_forest': {
-                'n_estimators': [50, 100, 200],
-                'max_depth': [5, 10, 15, None],
-                'min_samples_split': [2, 5, 10],
-                'min_samples_leaf': [1, 2, 4]
-            },
-            'xgboost': {
-                'n_estimators': [50, 100, 200],
-                'max_depth': [3, 5, 7],
-                'learning_rate': [0.01, 0.1, 0.2],
-                'subsample': [0.8, 0.9, 1.0]
-            },
-            'lightgbm': {
-                'n_estimators': [50, 100, 200],
-                'max_depth': [3, 5, 7],
-                'learning_rate': [0.01, 0.1, 0.2],
-                'num_leaves': [31, 50, 100]
-            }
-        }
-        
-        if model_name in param_grids:
-            # Get the base model
-            base_model = self.models[model_name]
-            
-            # Perform grid search
-            grid_search = GridSearchCV(
-                base_model, 
-                param_grids[model_name], 
-                cv=5, 
-                scoring='roc_auc',
-                n_jobs=-1,
-                verbose=1
-            )
-            
-            grid_search.fit(X_train, y_train)
-            
-            print(f"Best parameters: {grid_search.best_params_}")
-            print(f"Best cross-validation score: {grid_search.best_score_:.4f}")
-            
-            # Update the best model
-            self.best_model = grid_search.best_estimator_
-            self.best_score = grid_search.best_score_
-            
-            return grid_search.best_estimator_
-        else:
-            print(f"No hyperparameter tuning defined for {model_name}")
-            return self.best_model
+        return self.best_model
     
     def evaluate_model(self, model, X_test, y_test, model_name="Best Model"):
         """Detailed evaluation of the model"""
