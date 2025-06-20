@@ -50,15 +50,37 @@ class ModelTrainer:
     
     def handle_imbalanced_data(self, X_train, y_train):
         """Handle imbalanced dataset using SMOTE"""
-        smote = SMOTE(random_state=42)
-        X_resampled, y_resampled = smote.fit_resample(X_train, y_train)
-        
         print(f"Original dataset shape: {X_train.shape}")
-        print(f"Resampled dataset shape: {X_resampled.shape}")
-        print(f"Original class distribution: {np.bincount(y_train)}")
-        print(f"Resampled class distribution: {np.bincount(y_resampled)}")
         
-        return X_resampled, y_resampled
+        # Convert target to numeric for SMOTE
+        y_numeric = y_train.map({'No': 0, 'Yes': 1})
+        print(f"Original class distribution: {np.bincount(y_numeric)}")
+        
+        # Check if SMOTE is needed and possible
+        class_counts = np.bincount(y_numeric)
+        min_class_count = min(class_counts)
+        
+        if min_class_count < 2:
+            print("⚠️ Skipping SMOTE: Not enough samples in minority class")
+            return X_train, y_numeric
+        
+        if len(class_counts) < 2:
+            print("⚠️ Skipping SMOTE: Only one class present")
+            return X_train, y_numeric
+        
+        try:
+            # Apply SMOTE
+            smote = SMOTE(random_state=42)
+            X_resampled, y_resampled = smote.fit_resample(X_train, y_numeric)
+            
+            print(f"Resampled dataset shape: {X_resampled.shape}")
+            print(f"Resampled class distribution: {np.bincount(y_resampled)}")
+            
+            return X_resampled, y_resampled
+        except Exception as e:
+            print(f"⚠️ SMOTE failed: {e}")
+            print("Using original dataset without resampling")
+            return X_train, y_numeric
     
     def train_models(self, X_train, X_test, y_train, y_test, use_smote=True):
         """Train multiple models and compare performance"""
@@ -99,9 +121,12 @@ class ModelTrainer:
                 y_pred = model.predict(X_test)
                 y_pred_proba = model.predict_proba(X_test)[:, 1]
                 
+                # Convert y_test to numeric if needed
+                y_test_numeric = y_test.map({'No': 0, 'Yes': 1}) if y_test.dtype == 'object' else y_test
+                
                 # Calculate metrics
-                accuracy = accuracy_score(y_test, y_pred)
-                roc_auc = roc_auc_score(y_test, y_pred_proba)
+                accuracy = accuracy_score(y_test_numeric, y_pred)
+                roc_auc = roc_auc_score(y_test_numeric, y_pred_proba)
                 
                 # Store model performance
                 self.model_scores[name] = {
@@ -112,9 +137,15 @@ class ModelTrainer:
                 
                 print(f"{name} - Accuracy: {accuracy:.4f}, ROC AUC: {roc_auc:.4f}")
                 
-                # Cross-validation
-                cv_scores = cross_val_score(model, X_train_balanced, y_train_balanced, cv=5, scoring='roc_auc')
-                print(f"{name} - CV ROC AUC: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
+                # Cross-validation - adjust CV folds for small datasets
+                n_samples = len(X_train_balanced)
+                cv_folds = min(5, max(2, n_samples // 10))  # Use fewer folds for small datasets
+                
+                if cv_folds >= 2:
+                    cv_scores = cross_val_score(model, X_train_balanced, y_train_balanced, cv=cv_folds, scoring='roc_auc')
+                    print(f"{name} - CV ROC AUC: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f}) (CV={cv_folds})")
+                else:
+                    print(f"{name} - Skipping CV (dataset too small: {n_samples} samples)")
                 
                 # Update best model
                 if roc_auc > self.best_score:
@@ -147,26 +178,29 @@ class ModelTrainer:
         y_pred = model.predict(X_test)
         y_pred_proba = model.predict_proba(X_test)[:, 1]
         
+        # Convert y_test to numeric if needed
+        y_test_numeric = y_test.map({'No': 0, 'Yes': 1}) if y_test.dtype == 'object' else y_test
+        
         # Calculate metrics
-        accuracy = accuracy_score(y_test, y_pred)
-        roc_auc = roc_auc_score(y_test, y_pred_proba)
+        accuracy = accuracy_score(y_test_numeric, y_pred)
+        roc_auc = roc_auc_score(y_test_numeric, y_pred_proba)
         
         print(f"Accuracy: {accuracy:.4f}")
         print(f"ROC AUC: {roc_auc:.4f}")
         
         # Classification report
         print("\nClassification Report:")
-        print(classification_report(y_test, y_pred))
+        print(classification_report(y_test_numeric, y_pred))
         
         # Confusion matrix
-        cm = confusion_matrix(y_test, y_pred)
+        cm = confusion_matrix(y_test_numeric, y_pred)
         print("\nConfusion Matrix:")
         print(cm)
         
         return {
             'accuracy': accuracy,
             'roc_auc': roc_auc,
-            'classification_report': classification_report(y_test, y_pred),
+            'classification_report': classification_report(y_test_numeric, y_pred),
             'confusion_matrix': cm
         }
     
@@ -249,16 +283,9 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(script_dir)
     
-    # Try realistic dataset first, fall back to original if needed
-    realistic_dataset_path = os.path.join(project_root, 'Data', '01_Raw', 'test_realistic_dataset.csv')
-    original_dataset_path = os.path.join(project_root, 'Data', '01_Raw', 'oral_cancer_prediction_dataset.csv')
-    
-    if os.path.exists(realistic_dataset_path):
-        dataset_path = realistic_dataset_path
-        print("Using realistic dataset with proper medical correlations")
-    else:
-        dataset_path = original_dataset_path
-        print("Using original dataset (may have limited predictive signal)")
+    # Use original dataset but with fixes to handle the data issues
+    dataset_path = os.path.join(project_root, 'Data', '01_Raw', 'oral_cancer_prediction_dataset.csv')
+    print("Using original dataset with improved preprocessing")
     
     print(f"Looking for dataset at: {dataset_path}")
     

@@ -58,6 +58,26 @@ class DataPreprocessor:
         # Remove ID column if exists
         if 'ID' in df_clean.columns:
             df_clean = df_clean.drop('ID', axis=1)
+            
+        # Clean and standardize target column
+        if self.target_column in df_clean.columns:
+            # Standardize target values to 'Yes'/'No'
+            target_values = df_clean[self.target_column].astype(str).str.strip()
+            df_clean[self.target_column] = target_values.replace({
+                '1': 'Yes', '0': 'No', 'True': 'Yes', 'False': 'No',
+                'yes': 'Yes', 'no': 'No', 'YES': 'Yes', 'NO': 'No'
+            })
+            
+            # Remove any rows with invalid target values
+            valid_targets = ['Yes', 'No']
+            before_count = len(df_clean)
+            df_clean = df_clean[df_clean[self.target_column].isin(valid_targets)]
+            after_count = len(df_clean)
+            
+            if before_count != after_count:
+                print(f"⚠️ Removed {before_count - after_count} rows with invalid target values")
+            
+            print(f"Target value counts after cleaning: {df_clean[self.target_column].value_counts()}")
         
         # Handle missing values
         # For numerical columns, fill with median
@@ -226,10 +246,33 @@ class DataPreprocessor:
         # Select features
         X, y = self.select_features(df_enhanced)
         
-        # Split data
-        X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=test_size, random_state=random_state, stratify=y
-        )
+        # Split data - handle small datasets
+        print(f"\nPreparing train/test split...")
+        print(f"Target unique values: {y.unique()}")
+        print(f"Target value counts: {y.value_counts()}")
+        
+        # Check if we can use stratified split
+        min_class_size = min(y.value_counts()) if len(y.value_counts()) > 1 else 0
+        required_test_samples = max(1, int(len(y) * test_size))
+        
+        # Adjust test size for very small datasets
+        if len(y) < 50:
+            test_size = min(0.3, max(0.1, 10/len(y)))  # At least 10% but max 30%
+            print(f"⚠️ Small dataset detected. Adjusted test_size to {test_size:.2f}")
+            required_test_samples = max(1, int(len(y) * test_size))
+        
+        if len(y.unique()) > 1 and min_class_size >= 2 and min_class_size >= required_test_samples:
+            # Use stratified split for balanced datasets
+            print("✓ Using stratified split")
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=test_size, random_state=random_state, stratify=y
+            )
+        else:
+            # Use simple split for small/imbalanced datasets
+            print(f"⚠️ Using simple split (min_class_size={min_class_size}, required_test={required_test_samples})")
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=test_size, random_state=random_state
+            )
         
         # Scale features
         X_train_scaled, X_test_scaled = self.scale_features(X_train, X_test)
