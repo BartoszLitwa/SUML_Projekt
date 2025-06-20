@@ -1,0 +1,106 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, "3.10"]
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-${{ matrix.python-version }}-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Lint with flake8
+      run: |
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Test with pytest (if tests exist)
+      run: |
+        if [ -d "tests" ]; then
+          python -m pytest tests/ -v --tb=short
+        else
+          echo "No tests directory found, skipping tests"
+        fi
+      continue-on-error: true
+    
+    - name: Test imports
+      run: |
+        python -c "
+        import sys
+        sys.path.append('Model')
+        try:
+            from data_preprocessing import DataPreprocessor
+            from model_training import ModelTrainer
+            from model_inference import OralCancerPredictor
+            print('✅ All imports successful')
+        except ImportError as e:
+            print(f'❌ Import error: {e}')
+            sys.exit(1)
+        "
+    
+    - name: Test data preprocessing (with mock data)
+      run: |
+        python -c "
+        import sys
+        import pandas as pd
+        import numpy as np
+        sys.path.append('Model')
+        from data_preprocessing import DataPreprocessor
+        
+        # Create mock data
+        mock_data = {
+            'Age': [25, 35, 45, 55, 65],
+            'Gender': ['Male', 'Female', 'Male', 'Female', 'Male'],
+            'Tobacco Use': ['No', 'Yes', 'No', 'Yes', 'Yes'],
+            'Alcohol Consumption': ['No', 'No', 'Yes', 'Yes', 'No'],
+            'HPV Infection': ['No', 'No', 'No', 'Yes', 'No'],
+            'Betel Quid Use': ['No', 'No', 'No', 'No', 'Yes'],
+            'Chronic Sun Exposure': ['No', 'Yes', 'No', 'No', 'Yes'],
+            'Poor Oral Hygiene': ['No', 'Yes', 'Yes', 'No', 'Yes'],
+            'Diet (Fruits & Vegetables Intake)': ['High', 'Low', 'Moderate', 'High', 'Low'],
+            'Family History of Cancer': ['No', 'No', 'Yes', 'No', 'No'],
+            'Compromised Immune System': ['No', 'No', 'No', 'Yes', 'No'],
+            'Oral Lesions': ['No', 'Yes', 'No', 'No', 'Yes'],
+            'Unexplained Bleeding': ['No', 'No', 'No', 'Yes', 'No'],
+            'Difficulty Swallowing': ['No', 'No', 'Yes', 'No', 'No'],
+            'White or Red Patches in Mouth': ['No', 'Yes', 'No', 'No', 'Yes'],
+            'Oral Cancer (Diagnosis)': ['No', 'Yes', 'No', 'Yes', 'Yes']
+        }
+        
+        df = pd.DataFrame(mock_data)
+        
+        preprocessor = DataPreprocessor()
+        df_clean = preprocessor.clean_data(df)
+        df_encoded = preprocessor.encode_features(df_clean)
+        X, y = preprocessor.select_features(df_encoded)
+        
+        print(f'✅ Data preprocessing test passed')
+        print(f'Features shape: {X.shape}')
+        print(f'Target shape: {y.shape}')
+        "
+      continue-on-error: true 

@@ -1,0 +1,216 @@
+name: Model Training and Deployment
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Lint with flake8
+      run: |
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Format check with black
+      run: |
+        black --check --diff .
+    
+    - name: Run tests
+      run: |
+        python -m pytest tests/ -v --tb=short
+      continue-on-error: true
+
+  train-model:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Create artifacts directory
+      run: |
+        mkdir -p Model/artifacts
+    
+    - name: Check dataset exists
+      run: |
+        if [ ! -f "Data/01_Raw/oral_cancer_prediction_dataset.csv" ]; then
+          echo "Dataset not found! Please ensure the dataset is in the repository."
+          exit 1
+        fi
+        echo "Dataset found, proceeding with training..."
+    
+    - name: Train model
+      run: |
+        cd Model
+        python model_training.py
+      env:
+        PYTHONPATH: ${{ github.workspace }}
+    
+    - name: Validate model artifacts
+      run: |
+        if [ ! -d "Model/artifacts" ] || [ -z "$(ls -A Model/artifacts)" ]; then
+          echo "Model artifacts not created!"
+          exit 1
+        fi
+        ls -la Model/artifacts/
+    
+    - name: Upload model artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: trained-model-${{ github.sha }}
+        path: Model/artifacts/
+        retention-days: 30
+    
+    - name: Test model inference
+      run: |
+        cd Model
+        python model_inference.py
+      env:
+        PYTHONPATH: ${{ github.workspace }}
+
+  build-and-test-app:
+    needs: train-model
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Download model artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: trained-model-${{ github.sha }}
+        path: Model/artifacts/
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Build Docker image
+      run: |
+        docker build -t oral-cancer-app:latest .
+    
+    - name: Test Docker container
+      run: |
+        # Start the container in background
+        docker run -d --name test-app -p 8501:8501 \
+          -v ${{ github.workspace }}/Data:/app/Data \
+          -v ${{ github.workspace }}/Model/artifacts:/app/Model/artifacts \
+          oral-cancer-app:latest
+        
+        # Wait for the app to start
+        sleep 30
+        
+        # Test if the app is running
+        curl -f http://localhost:8501/_stcore/health || exit 1
+        
+        # Stop the container
+        docker stop test-app
+        docker rm test-app
+    
+    - name: Save Docker image
+      run: |
+        docker save oral-cancer-app:latest | gzip > oral-cancer-app.tar.gz
+    
+    - name: Upload Docker image
+      uses: actions/upload-artifact@v3
+      with:
+        name: docker-image-${{ github.sha }}
+        path: oral-cancer-app.tar.gz
+        retention-days: 7
+
+  deploy:
+    needs: [train-model, build-and-test-app]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Download model artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: trained-model-${{ github.sha }}
+        path: Model/artifacts/
+    
+    - name: Create deployment package
+      run: |
+        mkdir -p deployment
+        cp -r App deployment/
+        cp -r Model deployment/
+        cp requirements.txt deployment/
+        cp Dockerfile deployment/
+        cp docker-compose.yml deployment/
+        
+        # Create deployment info
+        echo "Deployment created at: $(date)" > deployment/deployment-info.txt
+        echo "Git commit: ${{ github.sha }}" >> deployment/deployment-info.txt
+        echo "Branch: ${{ github.ref_name }}" >> deployment/deployment-info.txt
+    
+    - name: Upload deployment package
+      uses: actions/upload-artifact@v3
+      with:
+        name: deployment-package-${{ github.sha }}
+        path: deployment/
+        retention-days: 90
+    
+    # Note: Add actual deployment steps here based on your deployment target
+    # For example: AWS, Azure, GCP, or on-premises deployment
+    
+    - name: Deployment summary
+      run: |
+        echo "✅ Model training completed successfully"
+        echo "✅ Docker image built and tested"
+        echo "✅ Deployment package created"
+        echo ""
+        echo "Model artifacts available for download"
+        echo "Docker image ready for deployment"
+        echo ""
+        echo "To run locally:"
+        echo "1. Download the deployment package"
+        echo "2. Run: docker-compose up"
+        echo "3. Open: http://localhost:8501" 
