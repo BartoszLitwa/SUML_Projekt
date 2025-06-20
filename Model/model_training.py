@@ -5,7 +5,12 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, confusion_matrix, roc_auc_score, accuracy_score
 from sklearn.model_selection import cross_val_score
 from imblearn.over_sampling import SMOTE
-import xgboost as xgb
+try:
+    import xgboost as xgb
+    XGBOOST_AVAILABLE = True
+except ImportError:
+    print("⚠️ XGBoost not available. Continuing with other models.")
+    XGBOOST_AVAILABLE = False
 import joblib
 import os
 from datetime import datetime
@@ -36,8 +41,12 @@ class ModelTrainer:
                 min_samples_split=10,
                 min_samples_leaf=5,
                 class_weight='balanced'
-            ),
-            'xgboost': xgb.XGBClassifier(
+            )
+        }
+        
+        # Add XGBoost only if available
+        if XGBOOST_AVAILABLE:
+            self.models['xgboost'] = xgb.XGBClassifier(
                 random_state=42, 
                 eval_metric='logloss',
                 n_estimators=200,
@@ -46,7 +55,8 @@ class ModelTrainer:
                 subsample=0.8,
                 colsample_bytree=0.8
             )
-        }
+        else:
+            print("⚠️ XGBoost not available, using only Logistic Regression and Random Forest")
     
     def handle_imbalanced_data(self, X_train, y_train):
         """Handle imbalanced dataset using SMOTE"""
