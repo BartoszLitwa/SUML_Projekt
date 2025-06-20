@@ -24,9 +24,28 @@ class ModelTrainer:
     def initialize_models(self):
         """Initialize different ML models to try"""
         self.models = {
-            'logistic_regression': LogisticRegression(random_state=42, max_iter=1000),
-            'random_forest': RandomForestClassifier(random_state=42, n_estimators=100),
-            'xgboost': xgb.XGBClassifier(random_state=42, eval_metric='logloss')
+            'logistic_regression': LogisticRegression(
+                random_state=42, 
+                max_iter=2000,
+                class_weight='balanced'  # Handle class imbalance
+            ),
+            'random_forest': RandomForestClassifier(
+                random_state=42, 
+                n_estimators=200,
+                max_depth=10,
+                min_samples_split=10,
+                min_samples_leaf=5,
+                class_weight='balanced'
+            ),
+            'xgboost': xgb.XGBClassifier(
+                random_state=42, 
+                eval_metric='logloss',
+                n_estimators=200,
+                max_depth=6,
+                learning_rate=0.1,
+                subsample=0.8,
+                colsample_bytree=0.8
+            )
         }
     
     def handle_imbalanced_data(self, X_train, y_train):
@@ -50,6 +69,22 @@ class ModelTrainer:
             X_train_balanced, y_train_balanced = self.handle_imbalanced_data(X_train, y_train)
         else:
             X_train_balanced, y_train_balanced = X_train, y_train
+        
+        # Data quality analysis
+        print("\n=== Data Quality Analysis ===")
+        print(f"Training set shape: {X_train.shape}")
+        print(f"Feature distribution (first few features):")
+        for col in X_train.columns[:5]:
+            unique_vals = X_train[col].nunique()
+            print(f"  {col}: {unique_vals} unique values")
+            if unique_vals <= 10:
+                print(f"    Values: {sorted(X_train[col].unique())}")
+        
+        # Check for class balance
+        y_counts = y_train.value_counts()
+        print(f"\nClass distribution:")
+        for class_val, count in y_counts.items():
+            print(f"  {class_val}: {count} ({count/len(y_train)*100:.1f}%)")
         
         print("\n=== Training Models ===")
         
@@ -213,7 +248,17 @@ def main():
     # Get the correct path to the dataset (relative to project root)
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(script_dir)
-    dataset_path = os.path.join(project_root, 'Data', '01_Raw', 'oral_cancer_prediction_dataset.csv')
+    
+    # Try realistic dataset first, fall back to original if needed
+    realistic_dataset_path = os.path.join(project_root, 'Data', '01_Raw', 'test_realistic_dataset.csv')
+    original_dataset_path = os.path.join(project_root, 'Data', '01_Raw', 'oral_cancer_prediction_dataset.csv')
+    
+    if os.path.exists(realistic_dataset_path):
+        dataset_path = realistic_dataset_path
+        print("Using realistic dataset with proper medical correlations")
+    else:
+        dataset_path = original_dataset_path
+        print("Using original dataset (may have limited predictive signal)")
     
     print(f"Looking for dataset at: {dataset_path}")
     

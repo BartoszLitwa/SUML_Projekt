@@ -29,7 +29,26 @@ class DataPreprocessor:
         print(f"Shape: {df.shape}")
         print(f"Columns: {list(df.columns)}")
         print(f"Missing values:\n{df.isnull().sum()}")
-        print(f"Target distribution:\n{df[self.target_column].value_counts()}")
+        
+        # Analyze target distribution
+        target_counts = df[self.target_column].value_counts()
+        print(f"Target distribution:\n{target_counts}")
+        
+        # Calculate class balance
+        total = len(df)
+        pos_rate = target_counts.get('Yes', 0) / total
+        neg_rate = target_counts.get('No', 0) / total
+        print(f"Positive rate: {pos_rate:.3f} ({pos_rate*100:.1f}%)")
+        print(f"Negative rate: {neg_rate:.3f} ({neg_rate*100:.1f}%)")
+        
+        # Analyze key risk factors
+        print("\n=== Key Risk Factor Analysis ===")
+        risk_factors = ['Tobacco Use', 'Alcohol Consumption', 'HPV Infection']
+        for factor in risk_factors:
+            if factor in df.columns:
+                cross_tab = pd.crosstab(df[factor], df[self.target_column], normalize='index')
+                print(f"\n{factor} vs Cancer:")
+                print(cross_tab)
         
     def clean_data(self, df):
         """Clean and preprocess the data"""
@@ -79,24 +98,97 @@ class DataPreprocessor:
         
         return df_encoded
     
+    def create_feature_interactions(self, df):
+        """Create meaningful feature interactions"""
+        df_features = df.copy()
+        
+        print("\n=== Creating Feature Interactions ===")
+        
+        # High-risk combination: Tobacco + Alcohol
+        if 'Tobacco Use' in df.columns and 'Alcohol Consumption' in df.columns:
+            df_features['Tobacco_Alcohol_Risk'] = (
+                (df['Tobacco Use'] == 1) & (df['Alcohol Consumption'] == 1)
+            ).astype(int)
+            print("✓ Created Tobacco + Alcohol interaction")
+        
+        # Age groups (higher risk in older populations)
+        if 'Age' in df.columns:
+            df_features['Age_High_Risk'] = (df['Age'] > 50).astype(int)
+            df_features['Age_Very_High_Risk'] = (df['Age'] > 65).astype(int)
+            print("✓ Created Age risk categories")
+        
+        # Multiple symptoms present
+        symptom_cols = ['Oral Lesions', 'Unexplained Bleeding', 'Difficulty Swallowing', 'White or Red Patches in Mouth']
+        available_symptoms = [col for col in symptom_cols if col in df.columns]
+        if len(available_symptoms) >= 2:
+            df_features['Multiple_Symptoms'] = df[available_symptoms].sum(axis=1)
+            df_features['Multiple_Symptoms_Binary'] = (df_features['Multiple_Symptoms'] >= 2).astype(int)
+            print(f"✓ Created multiple symptoms feature from {len(available_symptoms)} symptoms")
+        
+        # Combined lifestyle risk
+        lifestyle_cols = ['Tobacco Use', 'Alcohol Consumption', 'Poor Oral Hygiene']
+        available_lifestyle = [col for col in lifestyle_cols if col in df.columns]
+        if len(available_lifestyle) >= 2:
+            df_features['Lifestyle_Risk_Score'] = df[available_lifestyle].sum(axis=1)
+            print(f"✓ Created lifestyle risk score from {len(available_lifestyle)} factors")
+        
+        print(f"Original features: {df.shape[1]}, Enhanced features: {df_features.shape[1]}")
+        return df_features
+    
     def select_features(self, df):
         """Select relevant features for prediction"""
-        # Features most relevant for oral cancer prediction
-        selected_features = [
+        print("\n=== Feature Selection for Risk Prediction ===")
+        
+        # RISK FACTORS (things that exist BEFORE cancer diagnosis)
+        risk_factors = [
             'Age', 'Gender', 'Tobacco Use', 'Alcohol Consumption',
             'HPV Infection', 'Betel Quid Use', 'Chronic Sun Exposure',
             'Poor Oral Hygiene', 'Diet (Fruits & Vegetables Intake)',
-            'Family History of Cancer', 'Compromised Immune System',
+            'Family History of Cancer', 'Compromised Immune System'
+        ]
+        
+        # EARLY SYMPTOMS (might be present but are early indicators)
+        early_symptoms = [
             'Oral Lesions', 'Unexplained Bleeding', 'Difficulty Swallowing',
             'White or Red Patches in Mouth'
         ]
         
-        # Filter to only include features that exist in the dataset
+        # OUTCOME FEATURES (DO NOT USE - these happen AFTER diagnosis)
+        outcome_features = [
+            'Tumor Size (cm)', 'Cancer Stage', 'Treatment Type', 
+            'Survival Rate (5-Year, %)', 'Cost of Treatment (USD)',
+            'Economic Burden (Lost Workdays per Year)', 'Early Diagnosis'
+        ]
+        
+        # ENGINEERED FEATURES (created from feature interactions)
+        engineered_features = [
+            'Tobacco_Alcohol_Risk', 'Age_High_Risk', 'Age_Very_High_Risk',
+            'Multiple_Symptoms', 'Multiple_Symptoms_Binary', 'Lifestyle_Risk_Score'
+        ]
+        
+        # Combine risk factors, early symptoms, and engineered features
+        selected_features = risk_factors + early_symptoms + engineered_features
+        
+        # Check which features are available and log them
         available_features = [col for col in selected_features if col in df.columns]
+        missing_features = [col for col in selected_features if col not in df.columns]
+        excluded_outcomes = [col for col in outcome_features if col in df.columns]
+        
+        print(f"Available risk factors: {len(available_features)}")
+        print(f"Missing features: {missing_features}")
+        print(f"Excluded outcome features: {excluded_outcomes}")
+        
+        # Ensure we have meaningful features
+        if len(available_features) < 5:
+            print("⚠️ Warning: Very few features available. Model may not perform well.")
+        
         self.feature_columns = available_features
         
         X = df[available_features]
         y = df[self.target_column]
+        
+        print(f"Final feature set: {available_features}")
+        print(f"Feature matrix shape: {X.shape}")
         
         return X, y
     
@@ -128,8 +220,11 @@ class DataPreprocessor:
         # Encode features
         df_encoded = self.encode_features(df_clean)
         
+        # Create feature interactions
+        df_enhanced = self.create_feature_interactions(df_encoded)
+        
         # Select features
-        X, y = self.select_features(df_encoded)
+        X, y = self.select_features(df_enhanced)
         
         # Split data
         X_train, X_test, y_train, y_test = train_test_split(

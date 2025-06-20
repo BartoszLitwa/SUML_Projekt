@@ -90,17 +90,6 @@ jobs:
       run: |
         docker build -t oral-cancer-app:latest .
     
-    - name: Save Docker image
-      run: |
-        docker save oral-cancer-app:latest | gzip > oral-cancer-app.tar.gz
-    
-    - name: Upload Docker image
-      uses: actions/upload-artifact@v4
-      with:
-        name: docker-image-${{ github.sha }}
-        path: oral-cancer-app.tar.gz
-        retention-days: 7
-    
     - name: Deployment summary
       run: |
         echo "✅ Model training completed"
