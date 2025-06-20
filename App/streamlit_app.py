@@ -196,6 +196,39 @@ class StreamlitApp:
         
         st.session_state.assessment_history.append(assessment_record)
     
+    def convert_input_format(self, input_data):
+        """Convert user-friendly input format to model expected format"""
+        converted_data = input_data.copy()
+        
+        # Convert Yes/No to 1/0 for binary fields (except Gender)
+        binary_fields = [
+            'Tobacco Use', 'Alcohol Consumption', 'HPV Infection',
+            'Betel Quid Use', 'Chronic Sun Exposure', 'Poor Oral Hygiene',
+            'Family History of Cancer', 'Compromised Immune System',
+            'Oral Lesions', 'Unexplained Bleeding', 'Difficulty Swallowing',
+            'White or Red Patches in Mouth'
+        ]
+        
+        for field in binary_fields:
+            if field in converted_data:
+                if converted_data[field] == 'Yes':
+                    converted_data[field] = '1'
+                elif converted_data[field] == 'No':
+                    converted_data[field] = '0'
+        
+        # Convert diet intake to binary
+        if 'Diet (Fruits & Vegetables Intake)' in converted_data:
+            diet_value = converted_data['Diet (Fruits & Vegetables Intake)']
+            if diet_value in ['High', 'Moderate']:
+                converted_data['Diet (Fruits & Vegetables Intake)'] = '1'
+            else:  # 'Low'
+                converted_data['Diet (Fruits & Vegetables Intake)'] = '0'
+        
+        # Gender stays as string (Male/Female)
+        # Age stays as numeric
+        
+        return converted_data
+    
     def run(self):
         """Main application runner"""
         self.render_header()
@@ -212,12 +245,15 @@ class StreamlitApp:
         
         # Prediction button
         if st.button("Assess Risk"):
+            # Convert input format to match model expectations
+            converted_input = self.convert_input_format(input_data)
+            
             # Validate input
-            is_valid, message = self.predictor.validate_input(input_data)
+            is_valid, message = self.predictor.validate_input(converted_input)
             
             if is_valid:
                 # Make prediction
-                result = self.predictor.predict_risk(input_data)
+                result = self.predictor.predict_risk(converted_input)
                 
                 if result:
                     # Save assessment
